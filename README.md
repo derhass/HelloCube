@@ -1,7 +1,7 @@
 # HelloCube
 The purpose of this little program is to demonstrate the basic 
 usage of modern OpenGL core profiles. The program will display
-a rotating, unlit cube, whit some color transition on each face.
+a rotating, unlit cube, with some color transition on each face.
 
 ### Used Libraries
 
@@ -22,5 +22,15 @@ in core profile. This means you'll need one of those GPUs:
 * Intel HD Graphics 2000 (introduced with Sandy Bride in 2011) or better,
 * NVidia Geforce 8 (introduced 2006) or better, or
 * AMD/ATI Radeon HD 2000 (introduced 2006) or better.
+
 Make sure your GPU drivers are up to date.
+
+### Shaders
+
+A couple of demo shaders is provided in the `shaders` subdirectory. They can be switched
+at runtime using the number keys 0 to 9. Note that the shaders are reloaded, recompiled and
+relinked at the key press, so you can edit the shaders while the main programm is running.
+
+Have fun!
+
 
