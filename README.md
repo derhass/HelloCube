@@ -3,6 +3,9 @@ The purpose of this little program is to demonstrate the basic
 usage of modern OpenGL core profiles. The program will display
 a rotating, unlit cube, with some color transition on each face.
 
+![Screenshot of HelloCube application: a cube](https://raw.githubusercontent.com/derhass/HelloCube/master/screenshot.png)
+
+
 ### Used Libraries
 
 Besides OpenGL itself, the following libraries are used:
