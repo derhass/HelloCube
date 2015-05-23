@@ -134,12 +134,11 @@ static GLenum getGLError(const char *action, bool ignore=false, const char *file
 #endif
 
 /****************************************************************************
- * SETTING UP THE GL STATE                                                  *
+ * UTILITY FUNCTIONS: print information about the GL context                *
  ****************************************************************************/
 
-/* Initialize the global OpenGL state. This is called once after the context
- * is created. */
-static void initGLState()
+/* Print info about the OpenGL context */
+static void printGLInfo()
 {
 	/* get infos about the GL implementation */
 	info("OpenGL: %s %s %s",
@@ -148,6 +147,38 @@ static void initGLState()
 			glGetString(GL_VERSION));
 	info("OpenGL Shading language: %s",
 			glGetString(GL_SHADING_LANGUAGE_VERSION));
+}
+
+/* List all supported GL extensions */
+static void listGLExtensions()
+{
+	GLint num=0;
+	GLuint i;
+	glGetIntegerv(GL_NUM_EXTENSIONS, &num);
+	info("GL extensions supported: %d", num);
+	if (num < 1) {
+		return;
+	}
+
+	for (i=0; i<(GLuint)num; i++) {
+		const GLubyte *ext=glGetStringi(GL_EXTENSIONS,i);
+		if (ext) {
+			info("  %s",ext);
+		}
+	}
+}
+
+/****************************************************************************
+ * SETTING UP THE GL STATE                                                  *
+ ****************************************************************************/
+
+/* Initialize the global OpenGL state. This is called once after the context
+ * is created. */
+static void initGLState()
+{
+	printGLInfo();
+	listGLExtensions();
+
 	/* we set these once and never change them, so there is no need
 	 * to set them during the main loop */
 	glEnable(GL_DEPTH_TEST);
