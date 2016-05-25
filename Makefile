@@ -17,9 +17,9 @@ CFLAGS =   $(SHAREDFLAGS) -g
 CXXFLAGS = $(SHAREDFLAGS) -g
 endif
 
-# include paths for the builtin libraries GLEW and glm. We do not link them,
+# include paths for the builtin libraries glad and glm. We do not link them,
 # as we directly incorporated the source code into our project
-CPPFLAGS += -IGLEW/include -I glm/
+CPPFLAGS += -I glad/include -I glm/
 
 # Try to find the system's GLFW3 library via pkg-config
 CPPFLAGS += $(shell pkg-config --cflags glfw3)
@@ -29,7 +29,7 @@ LDFLAGS += $(shell pkg-config --libs glfw3)
 # TODO: shouldn't pkg-config --libs glfw3 include all those specific libs GLFW is using?
 LDFLAGS += -lGL -lX11 -lXi -lXrandr -lXxf86vm -lXinerama -lXcursor -lrt -lm
 
-CFILES=$(wildcard *.c) GLEW/glew.c
+CFILES=$(wildcard *.c) glad/src/glad.c
 CPPFILES=$(wildcard *.cpp)
 INCFILES=$(wildcard *.h)	
 SRCFILES = $(CFILES) $(CPPFILES)
@@ -58,7 +58,7 @@ $(DEPDIR)/dependencies: $(DEPDIR)/dir $(DEPFILES)
 	@cat $(DEPFILES) > $(DEPDIR)/dependencies
 $(DEPDIR)/dir:
 	@mkdir -p $(DEPDIR)
-	@mkdir -p $(DEPDIR)/GLEW
+	@mkdir -p $(DEPDIR)/glad/src
 	@touch $(DEPDIR)/dir
 $(DEPDIR)/%.d: %.c $(DEPDIR)/dir
 	@echo rebuilding dependencies for $*

@@ -9,10 +9,15 @@ a rotating, unlit cube, with some color transition on each face.
 ### Used Libraries
 
 Besides OpenGL itself, the following libraries are used:
-* GLEW (http://glew.sourceforge.net/), the OpenGL Extension Wrangler Library is used to load the OpenGL function pointers at runtime. The GLEW source code is directly integrated into this project, so that no external GLEW library is required.
 * glm (http://glm.g-truc.net/), the OpenGL Mathematics library is used for matrix and vector math. It is implemented as a header-only C++ library and also completely incorporated into this project, so that no external glm library is required.
 * GLFW3 (http://www.glfw.org/) is used as a multi-platform library for creating windows and OpenGL contexts and for event handling. For 32Bit Windows, the static libraries built with Visual Studio 2010 to 2013 as well as
 mingw are included (together with the header files), so that no extra libraries have to be installed here. For other platforms, you should install the GLFW library >= 3.0 manually.
+
+Furthermore, glad (https://github.com/Dav1dde/glad) was used to generate the C code for the OpenGL
+loader. This loader acquires all of the pointers to the OpenGL function at runtime. The loader source
+code is directly integrated into this project, glad itself is neither required as a build nor runtime
+dependency. However, you might use it to re-generate the loader if a new OpenGL version or extension
+emerges (if you intend to use the new functionality).
 
 ### Requirements
 

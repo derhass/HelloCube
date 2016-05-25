@@ -1,6 +1,6 @@
 #define GLEW_NO_GLU
 
-#include <glew.h>
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 #include <glm/mat4x4.hpp>
@@ -543,7 +543,6 @@ static void callback_Keyboard(GLFWwindow *win, int key, int scancode, int action
  * Returns true if successfull or false if an error occured. */
 bool initCubeApplication(CubeApp *app, int w, int h)
 {
-	GLenum err;
 	int i;
 
 	/* Initialize the app structure */
@@ -599,24 +598,14 @@ bool initCubeApplication(CubeApp *app, int w, int h)
 	 * setting, this may have no effect. But we can try... */
 	glfwSwapInterval(1);
 
-	/* initialize GLEW */
-	/* EVIL HACK: currently, glew does not correctly query the GL
-	 * extension string for a core profile. By setting glewExperimental,
-	 * it will ignore the strings and try to query the function pointers
-	 * anyway.
+	/* initialize glad,
+	 * this will load all OpenGL function pointers
 	 */
-	info("initializing GLEW");
-	glewExperimental=GL_TRUE;
-	err=glewInit();
-	if (err != GLEW_OK) {
-		warn("failed to intialize GLEW: 0x%x",(unsigned)err);
+	info("initializing glad");
+	if (!gladLoadGL()) {
+		warn("failed to intialize OpenGL functions via glad");
 		return false;
 	}
-
-	/* EVIL HACK: as GLEW uses a deprecated method to query the extension
-	 * string, it does generate a GL error. We just read it away and ignore
-	 * it. */
-	getGLError("glew initialization", true);
 
 	/* initialize the GL context */
 	initGLState();
