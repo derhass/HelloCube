@@ -21,7 +21,7 @@ emerges (if you intend to use the new functionality).
 
 ### Requirements
 
-For windows, project files for Visual Studio 2010 to 2013 are provided. They generate statically linked
+For windows, project files for Visual Studio 2010 to 2015 are provided. They generate statically linked
 binaries which should run out-of-the-box even when copied to another system. For Linux with GNU make,
 a simple Makefile is provided. It tries to findthe GLFW3 library via pkg-config.
 
