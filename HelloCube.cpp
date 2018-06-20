@@ -85,6 +85,7 @@ typedef struct {
 
 /* flags */
 #define APP_HAVE_GLFW	0x1	/* we have called glfwInit() and should terminate it */
+#define APP_HAVE_GL		0x2	/* we have a valid GL context */
 
 /* We use the following layout for vertex data */
 typedef struct {
@@ -680,6 +681,8 @@ bool initCubeApplication(CubeApp *app, const AppConfig& cfg)
 		return false;
 	}
 
+	app->flags |= APP_HAVE_GL;
+
 	/* initialize the GL context */
 	initGLState();
 	initCube(&app->cube);
@@ -698,10 +701,13 @@ bool initCubeApplication(CubeApp *app, const AppConfig& cfg)
 static void destroyCubeApp(CubeApp *app)
 {
 	if (app->flags & APP_HAVE_GLFW) {
-		destroyCube(&app->cube);
-		destroyShaders(app);
-		if (app->win)
+		if (app->win) {
+			if (app->flags & APP_HAVE_GL) {
+				destroyCube(&app->cube);
+				destroyShaders(app);
+			}
 			glfwDestroyWindow(app->win);
+		}
 		glfwTerminate();
 	}
 }
