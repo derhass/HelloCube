@@ -3,6 +3,7 @@ HelloCube
 dep
 Debug
 Release
+build
 *.swp
 *~
 *.vcproj.*

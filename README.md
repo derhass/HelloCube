@@ -10,7 +10,7 @@ a rotating, unlit cube, with some color transition on each face.
 
 Besides OpenGL itself, the following libraries are used:
 * glm (http://glm.g-truc.net/), the OpenGL Mathematics library is used for matrix and vector math. It is implemented as a header-only C++ library and also completely incorporated into this project, so that no external glm library is required.
-* GLFW3 (http://www.glfw.org/) is used as a multi-platform library for creating windows and OpenGL contexts and for event handling. For 32Bit Windows, the static libraries built with Visual Studio 2010 to 2013 as well as
+* GLFW3 (http://www.glfw.org/) is used as a multi-platform library for creating windows and OpenGL contexts and for event handling. For 32Bit and 64Bit Windows, the static libraries built with Visual Studio 2010 to 2017 as well as
 mingw are included (together with the header files), so that no extra libraries have to be installed here. For other platforms, you should install the GLFW library >= 3.0 manually.
 
 Furthermore, glad (https://github.com/Dav1dde/glad) was used to generate the C code for the OpenGL
@@ -21,8 +21,8 @@ emerges (if you intend to use the new functionality).
 
 ### Requirements
 
-For windows, project files for Visual Studio 2010 to 2015 are provided. They generate statically linked
-binaries which should run out-of-the-box even when copied to another system. For Linux with GNU make,
+For windows, a Visual Studio project file is provided. It should work beginning with VS 2010 and
+generates statically linked binaries which should run out-of-the-box even when copied to another system. For Linux with GNU make,
 a simple Makefile is provided. It tries to findthe GLFW3 library via pkg-config.
 
 To run this program, you need an OpenGL implementation supporting (at least) GL 3.2 
