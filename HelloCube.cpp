@@ -32,6 +32,9 @@ struct AppConfig {
 	int height;
 	bool decorated;
 	bool fullscreen;
+	bool stereo;
+	GLfloat focalDistance;
+	GLfloat eyeDistance;
 
 	AppConfig() :
 		posx(100),
@@ -39,7 +42,10 @@ struct AppConfig {
 		width(800),
 		height(600),
 		decorated(true),
-		fullscreen(false)
+		fullscreen(false),
+		stereo(false),
+		focalDistance(4.0f),
+		eyeDistance(5.0f*0.065f)
 	{}
 };
 
@@ -626,6 +632,9 @@ bool initCubeApplication(CubeApp *app, const AppConfig& cfg)
 	if (!cfg.decorated) {
 		glfwWindowHint(GLFW_DECORATED, GL_FALSE);
 	}
+	if (cfg.stereo) {
+		glfwWindowHint(GLFW_STEREO, GL_TRUE);
+	}
 
 	/* create the window and the gl context */
 	info("creating window and OpenGL context");
@@ -701,28 +710,19 @@ static void destroyCubeApp(CubeApp *app)
  * DRAWING FUNCTION                                                         *
  ****************************************************************************/
 
-/* The main drawing function. This is responsible for drawing the next frame,
- * it is called in a loop as long as the application runs */
+/* This draws the complete scene for a single eye */
 static void
-displayFunc(CubeApp *app)
+drawScene(CubeApp *app)
 {
-	/* set up projection and view matrices
-	 * (we do this every frame although we do not strictly have to do it,
-	 * as those matrixes do never change in our small example) */
-	app->projection=glm::perspective( glm::half_pi<float>(), (float)app->width/(float)app->height, 0.1f, 10.0f);
-	app->view=glm::translate(glm::vec3(0.0f, 0.0f, -4.0f));
-
-	/* rotate the cube */
-	app->cube.model = glm::rotate(app->cube.model, (float)(glm::half_pi<double>() * app->timeDelta), glm::vec3(0.8f, 0.6f, 0.1f));
-	/* combine model and view matrices to the modelView matrix our
-	 * shader expects */
-	glm::mat4 modelView = app->view * app->cube.model;
-
 	/* set the viewport (might have changed since last iteration) */
 	glViewport(0, 0, app->width, app->height);
 
 	/* real drawing starts here drawing */
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); /* clear the buffers */
+
+	/* combine model and view matrices to the modelView matrix our
+	 * shader expects */
+	glm::mat4 modelView = app->view * app->cube.model;
 
 	/* use the program and update the uniforms */
 	glUseProgram(app->program);
@@ -735,10 +735,56 @@ displayFunc(CubeApp *app)
 	glDrawElements(GL_TRIANGLES, 6 * 6, GL_UNSIGNED_SHORT, BUFFER_OFFSET(0));
 
 	/* "unbind" the VAO and the program. We do not have to do this.
-	 * OpenGL is a state machine. The last binings will stay effective
-	 * until we actively change them by binding something else. */
+	* OpenGL is a state machine. The last binings will stay effective
+	* until we actively change them by binding something else. */
 	glBindVertexArray(0);
-	glUseProgram(0);
+}
+
+/* Set up stereoscopic projection matrix */
+static glm::mat4
+stereoProjection(GLfloat fovy, GLfloat aspect, GLfloat clipNear, GLfloat clipFar, GLfloat focalDistance, GLfloat asymmetry)
+{
+	GLfloat hHalf = glm::tan(fovy / 2.0f);
+	GLfloat wHalf = hHalf * aspect;
+	GLfloat l, r, t, b;
+	l = (-wHalf * focalDistance + asymmetry) * (clipNear / focalDistance);
+	r = ( wHalf * focalDistance + asymmetry) * (clipNear / focalDistance);
+	b = -hHalf * clipNear;
+	t =  hHalf * clipNear;
+	return glm::frustum(l, r, t, b, clipNear, clipFar);
+}
+
+/* Set up projection and view for a particular eye
+ * eyeFactor is -1 for left eye, 0 for mono, and 1 for right eye
+ */
+static void
+setProjectionAndView(CubeApp *app, const AppConfig& cfg, GLfloat eyeFactor)
+{
+	app->projection = stereoProjection(glm::radians(75.0f), (float)app->width / (float)app->height, 0.1f, 10.0f, cfg.focalDistance, -1.0f * eyeFactor * cfg.eyeDistance/2.0f);
+	app->view = glm::translate(glm::vec3(-1.0f * eyeFactor * cfg.eyeDistance/2.0f, 0.0f, -4.0f));
+}
+
+/* The main drawing function. This is responsible for drawing the next frame,
+ * it is called in a loop as long as the application runs */
+static void
+displayFunc(CubeApp *app, const AppConfig& cfg)
+{
+	/* rotate the cube */
+	app->cube.model = glm::rotate(app->cube.model, (float)(glm::half_pi<double>() * app->timeDelta), glm::vec3(0.8f, 0.6f, 0.1f));
+
+	if (cfg.stereo) {
+		glDrawBuffer(GL_BACK_LEFT);
+		setProjectionAndView(app, cfg, -1.0f);
+		drawScene(app);
+
+		glDrawBuffer(GL_BACK_RIGHT);
+		setProjectionAndView(app, cfg, 1.0f);
+		drawScene(app);
+	} else {
+		glDrawBuffer(GL_BACK);
+		setProjectionAndView(app, cfg, 0.0f);
+		drawScene(app);
+	}
 
 	/* finished with drawing, swap FRONT and BACK buffers to show what we
 	 * have rendered */
@@ -785,7 +831,7 @@ static void mainLoop(CubeApp *app, const AppConfig& cfg)
 		}
 
 		/* call the display function */
-		displayFunc(app);
+		displayFunc(app, cfg);
 		frame++;
 
 		/* This is needed for GLFW event handling. This function
@@ -808,9 +854,13 @@ void parseCommandlineArgs(AppConfig& cfg, int argc, char**argv)
 	for (int i = 1; i < argc; i++) {
 		if (!std::strcmp(argv[i], "--fullscreen")) {
 			cfg.fullscreen = true;
+			cfg.decorated = false;
 		} else if (!std::strcmp(argv[i], "--undecorated")) {
 			cfg.decorated = false;
-		} else if (i + 1 < argc) {
+		} else if (!std::strcmp(argv[i], "--stereo")) {
+			cfg.stereo = true;
+		}
+		else if (i + 1 < argc) {
 			if (!std::strcmp(argv[i], "--width")) {
 				cfg.width = (int)strtol(argv[++i], NULL, 10);
 			} else if (!std::strcmp(argv[i], "--height")) {
@@ -819,6 +869,10 @@ void parseCommandlineArgs(AppConfig& cfg, int argc, char**argv)
 				cfg.posx = (int)strtol(argv[++i], NULL, 10);
 			} else if (!std::strcmp(argv[i], "--y")) {
 				cfg.posy = (int)strtol(argv[++i], NULL, 10);
+			} else if (!std::strcmp(argv[i], "--focalDistance")) {
+				cfg.focalDistance = (GLfloat)strtof(argv[++i], NULL);
+			} else if (!std::strcmp(argv[i], "--eyeDistance")) {
+				cfg.eyeDistance = (GLfloat)strtof(argv[++i], NULL);
 			}
 		}
 	}
