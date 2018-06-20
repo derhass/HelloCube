@@ -25,6 +25,24 @@ typedef struct {
 	glm::mat4 model;	/* local model transformation */
 } Cube;
 
+struct AppConfig {
+	int posx;
+	int posy;
+	int width;
+	int height;
+	bool decorated;
+	bool fullscreen;
+
+	AppConfig() :
+		posx(100),
+		posy(100),
+		width(800),
+		height(600),
+		decorated(true),
+		fullscreen(false)
+	{}
+};
+
 /* CubeApp: We encapsulate all of our application state in this struct.
  * We use a single instance of this object (in main), and set a pointer to
  * this as the user-defined pointer for GLFW windows. That way, we have access
@@ -550,14 +568,13 @@ wrap_getprocaddress(const char *name, void *user_ptr)
  * (via GLFW), initialize the GL function pointers via GLEW and initialize
  * the cube.
  * Returns true if successfull or false if an error occured. */
-bool initCubeApplication(CubeApp *app, int w, int h)
+bool initCubeApplication(CubeApp *app, const AppConfig& cfg)
 {
 	int i;
+	int w, h, x, y;
 
 	/* Initialize the app structure */
 	app->win=NULL;
-	app->width=w;
-	app->height=h;
 	app->flags=0;
 	app->avg_frametime=-1.0;
 	app->avg_fps=-1.0;
@@ -584,12 +601,45 @@ bool initCubeApplication(CubeApp *app, int w, int h)
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+	GLFWmonitor *monitor = NULL;
+	x = cfg.posx;
+	y = cfg.posy;
+	w = cfg.width;
+	h = cfg.height;
+
+	if (cfg.fullscreen) {
+		monitor = glfwGetPrimaryMonitor();
+	}
+	if (monitor) {
+		glfwGetMonitorPos(monitor, &x, &y);
+		const GLFWvidmode *v = glfwGetVideoMode(monitor);
+		if (v) {
+			w = v->width;
+			h = v->height;
+			info("Primary monitor: %dx%d @(%d,%d)", w, h, x, y);
+		}
+		else {
+			warn("Failed to query current video mode!");
+		}
+	}
+
+	if (!cfg.decorated) {
+		glfwWindowHint(GLFW_DECORATED, GL_FALSE);
+	}
+
 	/* create the window and the gl context */
 	info("creating window and OpenGL context");
-	app->win=glfwCreateWindow( w, h, APP_TITLE, NULL, NULL);
+	app->win=glfwCreateWindow(w, h, APP_TITLE, monitor, NULL);
 	if (!app->win) {
 		warn("failed to get window with OpenGL 3.2 core context");
 		return false;
+	}
+
+	app->width = w;
+	app->height = h;
+
+	if (!monitor) {
+		glfwSetWindowPos(app->win, x, y);
 	}
 
 	/* store a pointer to our application context in GLFW's window data.
@@ -678,7 +728,7 @@ displayFunc(CubeApp *app)
 	glUseProgram(app->program);
 	glUniformMatrix4fv(app->locProjection, 1, GL_FALSE, glm::value_ptr(app->projection));
 	glUniformMatrix4fv(app->locModelView, 1, GL_FALSE, glm::value_ptr(modelView));
-	glUniform1f(app->locTime, app->timeCur);
+	glUniform1f(app->locTime, (GLfloat)app->timeCur);
 
 	/* draw the cube */
 	glBindVertexArray(app->cube.vao);
@@ -706,7 +756,7 @@ displayFunc(CubeApp *app)
 /* The main loop of the application. This will call the display function
  *  until the application is closed. This function also keeps timing
  *  statistics. */
-static void mainLoop(CubeApp *app)
+static void mainLoop(CubeApp *app, const AppConfig& cfg)
 {
 	unsigned int frame=0,frames_total=0;
 	double start_time=glfwGetTime();
@@ -750,16 +800,44 @@ static void mainLoop(CubeApp *app)
 }
 
 /****************************************************************************
+ * SIMPLE COMMAND LINE PARSER                                               *
+ ****************************************************************************/
+
+void parseCommandlineArgs(AppConfig& cfg, int argc, char**argv)
+{
+	for (int i = 1; i < argc; i++) {
+		if (!std::strcmp(argv[i], "--fullscreen")) {
+			cfg.fullscreen = true;
+		} else if (!std::strcmp(argv[i], "--undecorated")) {
+			cfg.decorated = false;
+		} else if (i + 1 < argc) {
+			if (!std::strcmp(argv[i], "--width")) {
+				cfg.width = (int)strtol(argv[++i], NULL, 10);
+			} else if (!std::strcmp(argv[i], "--height")) {
+				cfg.height = (int)strtol(argv[++i], NULL, 10);
+			} else if (!std::strcmp(argv[i], "--x")) {
+				cfg.posx = (int)strtol(argv[++i], NULL, 10);
+			} else if (!std::strcmp(argv[i], "--y")) {
+				cfg.posy = (int)strtol(argv[++i], NULL, 10);
+			}
+		}
+	}
+}
+
+/****************************************************************************
  * PROGRAM ENTRY POINT                                                      *
  ****************************************************************************/
 
 int main (int argc, char **argv)
 {
+	AppConfig cfg;	/* the generic configuration */
 	CubeApp app;	/* the cube application stata stucture */
 
-	if (initCubeApplication(&app, 800, 600)) {
+	parseCommandlineArgs(cfg, argc, argv);
+
+	if (initCubeApplication(&app, cfg)) {
 		/* initialization succeeded, enter the main loop */
-		mainLoop(&app);
+		mainLoop(&app, cfg);
 	}
 	/* clean everything up */
 	destroyCubeApp(&app);
