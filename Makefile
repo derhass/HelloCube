@@ -23,11 +23,10 @@ CPPFLAGS += -I glad/include -I glm/
 
 # Try to find the system's GLFW3 library via pkg-config
 CPPFLAGS += $(shell pkg-config --cflags glfw3)
-LDFLAGS += $(shell pkg-config --libs glfw3) 
+LDFLAGS += $(shell pkg-config --static --libs glfw3) 
 
-# GL and X libs
-# TODO: shouldn't pkg-config --libs glfw3 include all those specific libs GLFW is using?
-LDFLAGS += -lGL -lX11 -lXi -lXrandr -lXxf86vm -lXinerama -lXcursor -lrt -lm
+# additional libraries
+LDFLAGS += -lrt -lm
 
 CFILES=$(wildcard *.c) glad/src/glad.c
 CPPFILES=$(wildcard *.cpp)
