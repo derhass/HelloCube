@@ -32,6 +32,7 @@ struct AppConfig {
 	int height;
 	bool decorated;
 	bool fullscreen;
+	unsigned int frameCount;
 	bool stereo;
 	GLfloat focalDistance;
 	GLfloat eyeDistance;
@@ -43,6 +44,7 @@ struct AppConfig {
 		height(600),
 		decorated(true),
 		fullscreen(false),
+		frameCount(0),
 		stereo(false),
 		focalDistance(4.0f),
 		eyeDistance(5.0f*0.065f)
@@ -64,6 +66,7 @@ typedef struct {
 	double timeCur, timeDelta;
 	double avg_frametime;
 	double avg_fps;
+	unsigned int frame;
 
 	/* keyboard handling */
 	bool pressedKeys[GLFW_KEY_LAST+1];
@@ -585,6 +588,7 @@ bool initCubeApplication(CubeApp *app, const AppConfig& cfg)
 	app->flags=0;
 	app->avg_frametime=-1.0;
 	app->avg_fps=-1.0;
+	app->frame = 0;
 
 	for (i=0; i<=GLFW_KEY_LAST; i++)
 		app->pressedKeys[i]=app->releasedKeys[i]=false;
@@ -810,7 +814,7 @@ displayFunc(CubeApp *app, const AppConfig& cfg)
  *  statistics. */
 static void mainLoop(CubeApp *app, const AppConfig& cfg)
 {
-	unsigned int frame=0,frames_total=0;
+	unsigned int frame=0;
 	double start_time=glfwGetTime();
 	double last_time=start_time;
 
@@ -828,7 +832,6 @@ static void mainLoop(CubeApp *app, const AppConfig& cfg)
 			app->avg_frametime=1000.0 * elapsed/(double)frame;
 			app->avg_fps=(double)frame/elapsed;
 			last_time=app->timeCur;
-			frames_total += frame;
 			frame=0;
 			/* update window title */
 			mysnprintf(WinTitle, sizeof(WinTitle), APP_TITLE "   /// AVG: %4.2fms/frame (%.1ffps)", app->avg_frametime, app->avg_fps);
@@ -838,17 +841,19 @@ static void mainLoop(CubeApp *app, const AppConfig& cfg)
 
 		/* call the display function */
 		displayFunc(app, cfg);
+		app->frame++;
 		frame++;
-
+		if (cfg.frameCount && app->frame >= cfg.frameCount) {
+			break;
+		}
 		/* This is needed for GLFW event handling. This function
 		 * will call the registered callback functions to forward
 		 * the events to us. */
 		glfwPollEvents();
 	}
-	frames_total += frame;
 	info("left main loop\n%u frames rendered in %.1fs seconds == %.1ffps",
-		frames_total, (app->timeCur-start_time),
-		(double)frames_total/(app->timeCur-start_time) );
+		app->frame,(app->timeCur-start_time),
+		(double)app->frame/(app->timeCur-start_time) );
 }
 
 /****************************************************************************
@@ -875,6 +880,8 @@ void parseCommandlineArgs(AppConfig& cfg, int argc, char**argv)
 				cfg.posx = (int)strtol(argv[++i], NULL, 10);
 			} else if (!std::strcmp(argv[i], "--y")) {
 				cfg.posy = (int)strtol(argv[++i], NULL, 10);
+			} else if (!std::strcmp(argv[i], "--frameCount")) {
+				cfg.frameCount = (unsigned)strtoul(argv[++i], NULL, 10);
 			} else if (!std::strcmp(argv[i], "--focalDistance")) {
 				cfg.focalDistance = (GLfloat)strtof(argv[++i], NULL);
 			} else if (!std::strcmp(argv[i], "--eyeDistance")) {
