@@ -25,6 +25,21 @@ typedef struct {
 	glm::mat4 model;	/* local model transformation */
 } Cube;
 
+/* for stereoscopic mode, we need to take different eyes into account */
+typedef enum {
+	EYE_MONO = 0,
+	EYE_LEFT,
+	EYE_RIGHT
+} Eye;
+
+/* the different background modes */
+typedef enum {
+	BG_NONE=0,
+	BG_CONSTANT,
+	BG_PER_FRAME,
+	BG_STEREO_PER_EYE,
+} BackgroundMode;
+
 /* AppConfig: application configuration, controllable via command line arguments*/
 struct AppConfig {
 	int posx;
@@ -37,6 +52,8 @@ struct AppConfig {
 	bool stereo;
 	GLfloat focalDistance;
 	GLfloat eyeDistance;
+	BackgroundMode background;
+	BackgroundMode extraPatch;
 
 	AppConfig() :
 		posx(100),
@@ -48,7 +65,9 @@ struct AppConfig {
 		frameCount(0),
 		stereo(false),
 		focalDistance(4.0f),
-		eyeDistance(5.0f*0.065f)
+		eyeDistance(5.0f*0.065f),
+		background(BG_CONSTANT),
+		extraPatch(BG_NONE)
 	{}
 };
 
@@ -215,7 +234,6 @@ static void initGLState()
 	/* We do not enable backface culling, since the "cut" shader works
 	 * best when one can see through the cut-out front faces... */
 	//glEnable(GL_CULL_FACE);
-	glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
 }
 
 /****************************************************************************
@@ -725,12 +743,6 @@ static void destroyCubeApp(CubeApp *app)
 static void
 drawScene(CubeApp *app)
 {
-	/* set the viewport (might have changed since last iteration) */
-	glViewport(0, 0, app->width, app->height);
-
-	/* real drawing starts here drawing */
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); /* clear the buffers */
-
 	/* combine model and view matrices to the modelView matrix our
 	 * shader expects */
 	glm::mat4 modelView = app->view * app->cube.model;
@@ -775,6 +787,76 @@ setProjectionAndView(CubeApp *app, const AppConfig& cfg, GLfloat eyeFactor)
 	app->view = glm::translate(glm::vec3(-1.0f * eyeFactor * cfg.eyeDistance/2.0f, 0.0f, -4.0f));
 }
 
+/* Get the background color for a particular frame and eye */
+static const GLfloat *
+getBackgroundColor(BackgroundMode mode, unsigned int frame, Eye eye)
+{
+	static const GLfloat bg[4] = { 0.3f, 0.3f, 0.3f, 1.0f };
+	static const GLfloat cycle[8][4] = 
+	{
+		{ 0.0f, 0.0f, 0.0f, 1.0f },
+		{ 1.0f, 0.0f, 0.0f, 1.0f },
+		{ 0.0f, 1.0f, 0.0f, 1.0f },
+		{ 0.0f, 0.0f, 1.0f, 1.0f },
+		{ 1.0f, 1.0f, 0.0f, 1.0f },
+		{ 1.0f, 0.0f, 1.0f, 1.0f },
+		{ 0.0f, 1.0f, 1.0f, 1.0f },
+		{ 1.0f, 1.0f, 1.0f, 1.0f }
+	};
+	static const GLfloat pereye[3][4] =
+	{
+		{ 1.0f, 0.0f, 1.0f, 1.0f },
+		{ 1.0f, 0.0f, 0.0f, 1.0f },
+		{ 0.0f, 0.0f, 1.0f, 1.0f }
+	};
+	const GLfloat *c;
+
+	switch (mode) {
+		case BG_NONE:
+			c = NULL;
+			break;
+		case BG_CONSTANT:
+			c = bg;
+			break;
+		case BG_PER_FRAME:
+			c = &cycle[frame & 7][0];
+			break;
+		case BG_STEREO_PER_EYE:
+			c = &pereye[((int)eye)%3][0];
+			break;
+		default:
+			warn("invalid bg mode 0x%x", (unsigned)mode);
+			c = NULL;
+	}
+
+	return c;
+}
+
+/* A full draw per eye*/
+static void
+displayFuncPerEye(CubeApp *app, const AppConfig& cfg, Eye eye)
+{
+	static const GLfloat eyeOffset[3] = { 0.0f, -1.0f, 1.0f };
+	const GLfloat *bg_color;
+
+	setProjectionAndView(app, cfg, eyeOffset[eye]);
+	if ((bg_color = getBackgroundColor(cfg.background, app->frame, eye))) {
+		glClearColor(bg_color[0], bg_color[1], bg_color[2], bg_color[3]);
+	}
+	/* real drawing starts here */
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); /* clear the buffers */
+	if ((bg_color = getBackgroundColor(cfg.extraPatch, app->frame, eye))) {
+		/* "draw" extra patch via scissor rect + clear */
+		glClearColor(bg_color[0], bg_color[1], bg_color[2], bg_color[3]);
+		glScissor(8, 8, 64, 64);
+		glEnable(GL_SCISSOR_TEST);
+		glClear(GL_COLOR_BUFFER_BIT);
+		glDisable(GL_SCISSOR_TEST);
+	}
+	drawScene(app);
+}
+
+
 /* The main drawing function. This is responsible for drawing the next frame,
  * it is called in a loop as long as the application runs */
 static void
@@ -783,18 +865,18 @@ displayFunc(CubeApp *app, const AppConfig& cfg)
 	/* rotate the cube */
 	app->cube.model = glm::rotate(app->cube.model, (float)(glm::half_pi<double>() * app->timeDelta), glm::vec3(0.8f, 0.6f, 0.1f));
 
+	/* set the viewport (might have changed since last iteration) */
+	glViewport(0, 0, app->width, app->height);
+
 	if (cfg.stereo) {
 		glDrawBuffer(GL_BACK_LEFT);
-		setProjectionAndView(app, cfg, -1.0f);
-		drawScene(app);
+		displayFuncPerEye(app, cfg, EYE_LEFT);
 
 		glDrawBuffer(GL_BACK_RIGHT);
-		setProjectionAndView(app, cfg, 1.0f);
-		drawScene(app);
+		displayFuncPerEye(app, cfg, EYE_RIGHT);
 	} else {
 		glDrawBuffer(GL_BACK);
-		setProjectionAndView(app, cfg, 0.0f);
-		drawScene(app);
+		displayFuncPerEye(app, cfg, EYE_MONO);
 	}
 
 	/* finished with drawing, swap FRONT and BACK buffers to show what we
@@ -887,6 +969,10 @@ void parseCommandlineArgs(AppConfig& cfg, int argc, char**argv)
 				cfg.focalDistance = (GLfloat)strtof(argv[++i], NULL);
 			} else if (!std::strcmp(argv[i], "--eyeDistance")) {
 				cfg.eyeDistance = (GLfloat)strtof(argv[++i], NULL);
+			} else if (!std::strcmp(argv[i], "--backgroundMode")) {
+				cfg.background = (BackgroundMode)strtoul(argv[++i], NULL, 0);
+			} else if (!std::strcmp(argv[i], "--extraPatch")) {
+				cfg.extraPatch = (BackgroundMode)strtoul(argv[++i], NULL, 0);
 			}
 		}
 	}
