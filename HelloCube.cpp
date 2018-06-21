@@ -25,6 +25,7 @@ typedef struct {
 	glm::mat4 model;	/* local model transformation */
 } Cube;
 
+/* AppConfig: application configuration, controllable via command line arguments*/
 struct AppConfig {
 	int posx;
 	int posy;
