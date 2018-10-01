@@ -1008,7 +1008,7 @@ void parseCommandlineArgs(AppConfig& cfg, int argc, char**argv)
 		} else if (!std::strcmp(argv[i], "--undecorated")) {
 			cfg.decorated = false;
 		} else if (!std::strcmp(argv[i], "--gl-debug-sync")) {
-			cfg.debugOutputSynchronous = false;
+			cfg.debugOutputSynchronous = true;
 		}
 		else if (i + 1 < argc) {
 			if (!std::strcmp(argv[i], "--width")) {
