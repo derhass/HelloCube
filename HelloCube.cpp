@@ -470,11 +470,7 @@ static void initCube(Cube *cube)
 		20,21,22, 22,21,23	/* bottom */
 	};
 
-	/* set up VAO and vertex and element array buffers */
-	glGenVertexArrays(1,&cube->vao);
-	glBindVertexArray(cube->vao);
-	info("Cube: created VAO %u", cube->vao);
-
+	/* set up vertex and element array buffers */
 	glGenBuffers(2,cube->vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, cube->vbo[0]);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(cubeGeometry), cubeGeometry, GL_STATIC_DRAW);
@@ -484,11 +480,18 @@ static void initCube(Cube *cube)
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cubeConnectivity), cubeConnectivity, GL_STATIC_DRAW);
 	info("Cube: created VBO %u for %u bytes of element data", cube->vbo[1], (unsigned)sizeof(cubeConnectivity));
 
+	/* set up VAO */
+	glGenVertexArrays(1,&cube->vao);
+	glBindVertexArray(cube->vao);
+
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), BUFFER_OFFSET(offsetof(Vertex,pos)));
 	glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(Vertex), BUFFER_OFFSET(offsetof(Vertex,clr)));
 
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(2);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cube->vbo[1]); /* need to bind EBO to VAO! */
+	info("Cube: created VAO %u", cube->vao);
 
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
