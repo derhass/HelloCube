@@ -70,17 +70,9 @@ extensions are supported.
 * `--frameCount $n`: exit application after `$n` frames were rendered
 
 #### OpenGL Quadbuffer Stereo
-* `--stereo`: enable stereo mode
-* `--focalDistance $n`: set distance to the zero parallax plane to `$n$` units
-* `--eyeDistance $n`: set distance between eyes to `$n` units
-* `--backgroundMode $mode`: set background color mode:
-  * `1`: constant color
-  * `2`: color per _frame_
-  * `3`: different color per _eye_
-* `--extraPatch $mode`: set the mode for drawing an extra rectangular patch into the image:
-  * `0`: disabled, don't draw the extra patch
-  * `1`: constant color
-  * `2`: color per _frame_
-  * `3`: different color per _eye_
+
+A special version with support for Quadbuffer Stereo is provided separately
+in the
+[`quadbuffer_stereo` branch](https://github.com/derhass/HelloCube/tree/quadbuffer_stereo).
 
 Have fun!

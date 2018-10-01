@@ -25,21 +25,6 @@ typedef struct {
 	glm::mat4 model;	/* local model transformation */
 } Cube;
 
-/* for stereoscopic mode, we need to take different eyes into account */
-typedef enum {
-	EYE_MONO = 0,
-	EYE_LEFT,
-	EYE_RIGHT
-} Eye;
-
-/* the different background modes */
-typedef enum {
-	BG_NONE=0,
-	BG_CONSTANT,
-	BG_PER_FRAME,
-	BG_STEREO_PER_EYE,
-} BackgroundMode;
-
 /* OpenGL debug output error level */
 typedef enum {
 	DEBUG_OUTPUT_DISABLED=0,
@@ -58,11 +43,6 @@ struct AppConfig {
 	unsigned int frameCount;
 	DebugOutputLevel debugOutputLevel;
 	bool debugOutputSynchronous;
-	bool stereo;
-	GLfloat focalDistance;
-	GLfloat eyeDistance;
-	BackgroundMode background;
-	BackgroundMode extraPatch;
 
 	AppConfig() :
 		posx(100),
@@ -73,12 +53,7 @@ struct AppConfig {
 		fullscreen(false),
 		frameCount(0),
 		debugOutputLevel(DEBUG_OUTPUT_DISABLED),
-		debugOutputSynchronous(false),
-		stereo(false),
-		focalDistance(4.0f),
-		eyeDistance(5.0f*0.065f),
-		background(BG_CONSTANT),
-		extraPatch(BG_NONE)
+		debugOutputSynchronous(false)
 	{}
 };
 
@@ -829,9 +804,6 @@ bool initCubeApplication(CubeApp *app, const AppConfig& cfg)
 	if (!cfg.decorated) {
 		glfwWindowHint(GLFW_DECORATED, GL_FALSE);
 	}
-	if (cfg.stereo) {
-		glfwWindowHint(GLFW_STEREO, GL_TRUE);
-	}
 
 	/* create the window and the gl context */
 	info("creating window and OpenGL context");
@@ -936,99 +908,15 @@ drawScene(CubeApp *app)
 	glBindVertexArray(0);
 }
 
-/* Set up stereoscopic projection matrix */
-static glm::mat4
-stereoProjection(GLfloat fovy, GLfloat aspect, GLfloat clipNear, GLfloat clipFar, GLfloat focalDistance, GLfloat asymmetry)
-{
-	GLfloat hHalf = glm::tan(fovy / 2.0f);
-	GLfloat wHalf = hHalf * aspect;
-	GLfloat l, r, t, b;
-	l = (-wHalf * focalDistance + asymmetry) * (clipNear / focalDistance);
-	r = ( wHalf * focalDistance + asymmetry) * (clipNear / focalDistance);
-	b = -hHalf * clipNear;
-	t =  hHalf * clipNear;
-	return glm::frustum(l, r, t, b, clipNear, clipFar);
-}
-
 /* Set up projection and view for a particular eye
  * eyeFactor is -1 for left eye, 0 for mono, and 1 for right eye
  */
 static void
-setProjectionAndView(CubeApp *app, const AppConfig& cfg, GLfloat eyeFactor)
+setProjectionAndView(CubeApp *app)
 {
-	app->projection = stereoProjection(glm::radians(75.0f), (float)app->width / (float)app->height, 0.1f, 10.0f, cfg.focalDistance, -1.0f * eyeFactor * cfg.eyeDistance/2.0f);
-	app->view = glm::translate(glm::vec3(-1.0f * eyeFactor * cfg.eyeDistance/2.0f, 0.0f, -4.0f));
+	app->projection = glm::perspective(glm::radians(75.0f), (float)app->width / (float)app->height, 0.1f, 10.0f);
+	app->view = glm::translate(glm::vec3(0.0f, 0.0f, -4.0f));
 }
-
-/* Get the background color for a particular frame and eye */
-static const GLfloat *
-getBackgroundColor(BackgroundMode mode, unsigned int frame, Eye eye)
-{
-	static const GLfloat bg[4] = { 0.3f, 0.3f, 0.3f, 1.0f };
-	static const GLfloat cycle[8][4] = 
-	{
-		{ 0.0f, 0.0f, 0.0f, 1.0f },
-		{ 1.0f, 0.0f, 0.0f, 1.0f },
-		{ 0.0f, 1.0f, 0.0f, 1.0f },
-		{ 0.0f, 0.0f, 1.0f, 1.0f },
-		{ 1.0f, 1.0f, 0.0f, 1.0f },
-		{ 1.0f, 0.0f, 1.0f, 1.0f },
-		{ 0.0f, 1.0f, 1.0f, 1.0f },
-		{ 1.0f, 1.0f, 1.0f, 1.0f }
-	};
-	static const GLfloat pereye[3][4] =
-	{
-		{ 1.0f, 0.0f, 1.0f, 1.0f },
-		{ 1.0f, 0.0f, 0.0f, 1.0f },
-		{ 0.0f, 0.0f, 1.0f, 1.0f }
-	};
-	const GLfloat *c;
-
-	switch (mode) {
-		case BG_NONE:
-			c = NULL;
-			break;
-		case BG_CONSTANT:
-			c = bg;
-			break;
-		case BG_PER_FRAME:
-			c = &cycle[frame & 7][0];
-			break;
-		case BG_STEREO_PER_EYE:
-			c = &pereye[((int)eye)%3][0];
-			break;
-		default:
-			warn("invalid bg mode 0x%x", (unsigned)mode);
-			c = NULL;
-	}
-
-	return c;
-}
-
-/* A full draw per eye*/
-static void
-displayFuncPerEye(CubeApp *app, const AppConfig& cfg, Eye eye)
-{
-	static const GLfloat eyeOffset[3] = { 0.0f, -1.0f, 1.0f };
-	const GLfloat *bg_color;
-
-	setProjectionAndView(app, cfg, eyeOffset[eye]);
-	if ((bg_color = getBackgroundColor(cfg.background, app->frame, eye))) {
-		glClearColor(bg_color[0], bg_color[1], bg_color[2], bg_color[3]);
-	}
-	/* real drawing starts here */
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); /* clear the buffers */
-	if ((bg_color = getBackgroundColor(cfg.extraPatch, app->frame, eye))) {
-		/* "draw" extra patch via scissor rect + clear */
-		glClearColor(bg_color[0], bg_color[1], bg_color[2], bg_color[3]);
-		glScissor(8, 8, 64, 64);
-		glEnable(GL_SCISSOR_TEST);
-		glClear(GL_COLOR_BUFFER_BIT);
-		glDisable(GL_SCISSOR_TEST);
-	}
-	drawScene(app);
-}
-
 
 /* The main drawing function. This is responsible for drawing the next frame,
  * it is called in a loop as long as the application runs */
@@ -1041,16 +929,11 @@ displayFunc(CubeApp *app, const AppConfig& cfg)
 	/* set the viewport (might have changed since last iteration) */
 	glViewport(0, 0, app->width, app->height);
 
-	if (cfg.stereo) {
-		glDrawBuffer(GL_BACK_LEFT);
-		displayFuncPerEye(app, cfg, EYE_LEFT);
+	glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); /* clear the buffers */
 
-		glDrawBuffer(GL_BACK_RIGHT);
-		displayFuncPerEye(app, cfg, EYE_RIGHT);
-	} else {
-		glDrawBuffer(GL_BACK);
-		displayFuncPerEye(app, cfg, EYE_MONO);
-	}
+	setProjectionAndView(app);
+	drawScene(app);
 
 	/* finished with drawing, swap FRONT and BACK buffers to show what we
 	 * have rendered */
@@ -1126,8 +1009,6 @@ void parseCommandlineArgs(AppConfig& cfg, int argc, char**argv)
 			cfg.decorated = false;
 		} else if (!std::strcmp(argv[i], "--gl-debug-sync")) {
 			cfg.debugOutputSynchronous = false;
-		} else if (!std::strcmp(argv[i], "--stereo")) {
-			cfg.stereo = true;
 		}
 		else if (i + 1 < argc) {
 			if (!std::strcmp(argv[i], "--width")) {
@@ -1142,14 +1023,6 @@ void parseCommandlineArgs(AppConfig& cfg, int argc, char**argv)
 				cfg.frameCount = (unsigned)strtoul(argv[++i], NULL, 10);
 			} else if (!std::strcmp(argv[i], "--gl-debug-level")) {
 				cfg.debugOutputLevel = (DebugOutputLevel)strtoul(argv[++i], NULL, 10);
-			} else if (!std::strcmp(argv[i], "--focalDistance")) {
-				cfg.focalDistance = (GLfloat)strtof(argv[++i], NULL);
-			} else if (!std::strcmp(argv[i], "--eyeDistance")) {
-				cfg.eyeDistance = (GLfloat)strtof(argv[++i], NULL);
-			} else if (!std::strcmp(argv[i], "--backgroundMode")) {
-				cfg.background = (BackgroundMode)strtoul(argv[++i], NULL, 0);
-			} else if (!std::strcmp(argv[i], "--extraPatch")) {
-				cfg.extraPatch = (BackgroundMode)strtoul(argv[++i], NULL, 0);
 			}
 		}
 	}
