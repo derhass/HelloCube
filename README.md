@@ -43,7 +43,8 @@ relinked at the key press, so you can edit the shaders while the main programm i
 
 THe HelloCube program supports a number of command-line arguments.
 
-The window can be controlled by:
+#### Window control
+
 * `--fullscreen`: run in fullscreen mode
 * `--undecorated`: run without window decoration (can be used in combination with initial window size and position arguments to achive "borderless windowed fullscreen")
 * `--width $w`: set initial window width to `$w`
@@ -51,32 +52,35 @@ The window can be controlled by:
 * `--x $x`: set initial window position x coordinate to `$x`
 * `--y $y`: set initial window position y coordinate to `$y`
 
-Furthermore, the application supports [OpenGL debug output](https://www.khronos.org/opengl/wiki/Debug_Output).
+#### [OpenGL debug output](https://www.khronos.org/opengl/wiki/Debug_Output)
+
 This can be controlled by:
 * `--gl-debug-level $level`
   * `0`: no debug output (the default)
-  * '1': debug output enabled, only report errors
+  * `1`: debug output enabled, only report errors
   * `2`: debug output enabled, reportd anything.
-Debug output will only work if we got a GL context with Versison 4.3 or higher, or if at least one of
-`GL_KHR_debug` or `GL_ARB_debug_output` extensions are supported.
 
-Miscellaneous arguments:
+Debug output will only work if we got a GL context with Versison 4.3 or higher, or if at least one of the
+[`GL_KHR_debug`](https://www.khronos.org/registry/OpenGL/extensions/KHR/KHR_debug.txt) or
+[`GL_ARB_debug_output`](https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_debug_output.txt)
+extensions are supported.
+
+#### Miscellaneous features
+
 * `--frameCount $n`: exit application after `$n` frames were rendered
 
-This version of HelloCube also supports OpenGL Quadbuffer Stereo. It can be controlled via:
+#### OpenGL Quadbuffer Stereo
 * `--stereo`: enable stereo mode
 * `--focalDistance $n`: set distance to the zero parallax plane to `$n$` units
 * `--eyeDistance $n`: set distance between eyes to `$n` units
-* `--backgroundMode $mode': set background color mode:
-  * '1': constant color
-  * '2': color per _frame_
-  * '3': different color per _eye_
-* `--extraPatch $mode`: det the mode for drawing an extra rectangular patch into the image:
-  * '0': disabled, don't draw the extra patch
-  * '1': constant color
-  * '2': color per _frame_
-  * '3': different color per _eye_
+* `--backgroundMode $mode`: set background color mode:
+  * `1`: constant color
+  * `2`: color per _frame_
+  * `3`: different color per _eye_
+* `--extraPatch $mode`: set the mode for drawing an extra rectangular patch into the image:
+  * `0`: disabled, don't draw the extra patch
+  * `1`: constant color
+  * `2`: color per _frame_
+  * `3`: different color per _eye_
 
 Have fun!
-
-
