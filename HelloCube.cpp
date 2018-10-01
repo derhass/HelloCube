@@ -40,6 +40,13 @@ typedef enum {
 	BG_STEREO_PER_EYE,
 } BackgroundMode;
 
+/* OpenGL debug output error level */
+typedef enum {
+	DEBUG_OUTPUT_DISABLED=0,
+	DEBUG_OUTPUT_ERRORS_ONLY,
+	DEBUG_OUTPUT_ALL
+} DebugOutputLevel;
+
 /* AppConfig: application configuration, controllable via command line arguments*/
 struct AppConfig {
 	int posx;
@@ -49,6 +56,8 @@ struct AppConfig {
 	bool decorated;
 	bool fullscreen;
 	unsigned int frameCount;
+	DebugOutputLevel debugOutputLevel;
+	bool debugOutputSynchronous;
 	bool stereo;
 	GLfloat focalDistance;
 	GLfloat eyeDistance;
@@ -63,6 +72,8 @@ struct AppConfig {
 		decorated(true),
 		fullscreen(false),
 		frameCount(0),
+		debugOutputLevel(DEBUG_OUTPUT_DISABLED),
+		debugOutputSynchronous(false),
 		stereo(false),
 		focalDistance(4.0f),
 		eyeDistance(5.0f*0.065f),
@@ -182,6 +193,134 @@ static GLenum getGLError(const char *action, bool ignore=false, const char *file
 #endif
 
 /****************************************************************************
+ * GL DEBUG MESSAGES                                                        *
+ ****************************************************************************/
+
+/* Newer versions of the GL support the generation of human-readable messages
+   for GL errors, performance warnings and hints. These messages are
+   forwarded to a debug callback which has to be registered with the GL
+   context. Debug output may only be available in special debug context... */
+
+/* translate the debug message "source" enum to human-readable string */
+static const char *
+translateDebugSourceEnum(GLenum source)
+{
+	const char *s;
+
+	switch (source) {
+		case GL_DEBUG_SOURCE_API:
+			s="API";
+			break;
+		case GL_DEBUG_SOURCE_WINDOW_SYSTEM:
+			s="window system";
+			break;
+		case GL_DEBUG_SOURCE_SHADER_COMPILER:
+			s="shader compiler";
+			break;
+		case GL_DEBUG_SOURCE_THIRD_PARTY:
+			s="3rd party";
+			break;
+		case GL_DEBUG_SOURCE_APPLICATION:
+			s="application";
+			break;
+		case GL_DEBUG_SOURCE_OTHER:
+			s="other";
+			break;
+		default:
+			s="[UNKNOWN SOURCE]";
+	}
+
+	return s;
+}
+
+/* translate the debug message "type" enum to human-readable string */
+static const char *
+translateDebugTypeEnum(GLenum type)
+{
+	const char *s;
+
+	switch (type) {
+		case GL_DEBUG_TYPE_ERROR:
+			s="error";
+			break;
+		case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
+			s="deprecated";
+			break;
+		case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
+			s="undefined behavior";
+			break;
+		case GL_DEBUG_TYPE_PORTABILITY:
+			s="portability";
+			break;
+		case GL_DEBUG_TYPE_PERFORMANCE:
+			s="performance";
+			break;
+		case GL_DEBUG_TYPE_OTHER:
+			s="other";
+			break;
+		default:
+			s="[UNKNOWN TYPE]";
+	}
+	return s;
+}
+
+/* translate the debug message "xeverity" enum to human-readable string */
+static const char *
+translateDebugSeverityEnum(GLenum severity)
+{
+	const char *s;
+
+	switch (severity) {
+		case GL_DEBUG_SEVERITY_HIGH:
+			s="high";
+			break;
+		case GL_DEBUG_SEVERITY_MEDIUM:
+			s="medium";
+			break;
+		case GL_DEBUG_SEVERITY_LOW:
+			s="low";
+			break;
+		case GL_DEBUG_SEVERITY_NOTIFICATION:
+			s="notification";
+			break;
+		default:
+			s="[UNKNOWN SEVERITY]";
+	}
+
+	return s;
+}
+
+/* debug callback of the GL */
+extern void APIENTRY
+debugCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
+			  GLsizei length, const GLchar *message, const GLvoid* userParam)
+{
+	/* we pass a pointer to our application config to the callback as userParam */
+	const AppConfig *cfg=(const AppConfig*)userParam;
+
+	switch(type) {
+		case GL_DEBUG_TYPE_ERROR:
+		case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
+			if (cfg->debugOutputLevel >= DEBUG_OUTPUT_ERRORS_ONLY) {
+				warn("GLDEBUG: %s %s %s [0x%x]: %s",
+					translateDebugSourceEnum(source),
+					translateDebugTypeEnum(type),
+					translateDebugSeverityEnum(severity),
+					id, message);
+			}
+			break;
+		default:
+			if (cfg->debugOutputLevel >= DEBUG_OUTPUT_ALL) {
+				warn("GLDEBUG: %s %s %s [0x%x]: %s",
+					translateDebugSourceEnum(source),
+					translateDebugTypeEnum(type),
+					translateDebugSeverityEnum(severity),
+					id, message);
+			}
+	}
+}
+
+/****************************************************************************
  * UTILITY FUNCTIONS: print information about the GL context                *
  ****************************************************************************/
 
@@ -222,10 +361,42 @@ static void listGLExtensions()
 
 /* Initialize the global OpenGL state. This is called once after the context
  * is created. */
-static void initGLState()
+static void initGLState(const AppConfig&cfg)
 {
 	printGLInfo();
 	listGLExtensions();
+
+	if (cfg.debugOutputLevel > DEBUG_OUTPUT_DISABLED) {
+		if (GLAD_GL_VERSION_4_3) {
+			info("enabling GL debug output [via OpenGL >= 4.3]");
+			glDebugMessageCallback(debugCallback,&cfg);
+			glEnable(GL_DEBUG_OUTPUT);
+			if (cfg.debugOutputSynchronous) {
+				glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+			} else {
+				glDisable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+			}
+		} else if (GLAD_GL_KHR_debug) {
+			info("enabling GL debug output [via GL_KHR_debug]");
+			glDebugMessageCallback(debugCallback,&cfg);
+			glEnable(GL_DEBUG_OUTPUT);
+			if (cfg.debugOutputSynchronous) {
+				glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+			} else {
+				glDisable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+			}
+		} else if (GLAD_GL_ARB_debug_output) {
+			info("enabling GL debug output [via GL_ARB_debug_output]");
+			glDebugMessageCallbackARB(debugCallback,&cfg);
+			if (cfg.debugOutputSynchronous) {
+				glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
+			} else {
+				glDisable(GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
+			}
+		} else {
+			warn("GL debug output requested, but not supported by the context");
+		}
+	}
 
 	/* we set these once and never change them, so there is no need
 	 * to set them during the main loop */
@@ -601,6 +772,7 @@ bool initCubeApplication(CubeApp *app, const AppConfig& cfg)
 {
 	int i;
 	int w, h, x, y;
+	bool debugCtx=(cfg.debugOutputLevel > DEBUG_OUTPUT_DISABLED);
 
 	/* Initialize the app structure */
 	app->win=NULL;
@@ -630,6 +802,7 @@ bool initCubeApplication(CubeApp *app, const AppConfig& cfg)
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, (debugCtx)?GL_TRUE:GL_FALSE);
 
 	GLFWmonitor *monitor = NULL;
 	x = cfg.posx;
@@ -707,7 +880,7 @@ bool initCubeApplication(CubeApp *app, const AppConfig& cfg)
 	app->flags |= APP_HAVE_GL;
 
 	/* initialize the GL context */
-	initGLState();
+	initGLState(cfg);
 	initCube(&app->cube);
 	if (!initShaders(app,"shaders/color.vs.glsl","shaders/color.fs.glsl")) {
 		warn("something wrong with our shaders...");
@@ -951,6 +1124,8 @@ void parseCommandlineArgs(AppConfig& cfg, int argc, char**argv)
 			cfg.decorated = false;
 		} else if (!std::strcmp(argv[i], "--undecorated")) {
 			cfg.decorated = false;
+		} else if (!std::strcmp(argv[i], "--gl-debug-sync")) {
+			cfg.debugOutputSynchronous = false;
 		} else if (!std::strcmp(argv[i], "--stereo")) {
 			cfg.stereo = true;
 		}
@@ -965,6 +1140,8 @@ void parseCommandlineArgs(AppConfig& cfg, int argc, char**argv)
 				cfg.posy = (int)strtol(argv[++i], NULL, 10);
 			} else if (!std::strcmp(argv[i], "--frameCount")) {
 				cfg.frameCount = (unsigned)strtoul(argv[++i], NULL, 10);
+			} else if (!std::strcmp(argv[i], "--gl-debug-level")) {
+				cfg.debugOutputLevel = (DebugOutputLevel)strtoul(argv[++i], NULL, 10);
 			} else if (!std::strcmp(argv[i], "--focalDistance")) {
 				cfg.focalDistance = (GLfloat)strtof(argv[++i], NULL);
 			} else if (!std::strcmp(argv[i], "--eyeDistance")) {
