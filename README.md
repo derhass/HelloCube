@@ -23,11 +23,11 @@ emerges (if you intend to use the new functionality).
 
 For windows, a Visual Studio project file is provided. It should work beginning with VS 2010 and
 generates statically linked binaries which should run out-of-the-box even when copied to another system. For Linux with GNU make,
-a simple Makefile is provided. It tries to findthe GLFW3 library via pkg-config.
+a simple Makefile is provided. It tries to find the GLFW3 library via pkg-config.
 
 To run this program, you need an OpenGL implementation supporting (at least) GL 3.2 
 in core profile. This means you'll need one of those GPUs:
-* Intel HD Graphics 2000 (introduced with Sandy Bride in 2011) or better,
+* Intel HD Graphics 2000 (introduced with Sandy Bridge in 2011) or better,
 * NVidia Geforce 8 (introduced 2006) or better, or
 * AMD/ATI Radeon HD 2000 (introduced 2006) or better.
 
