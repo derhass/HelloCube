@@ -1,0 +1,8 @@
+# this attributes are only for github's language detector
+# see https://github.com/github/linguist
+
+GLFW/*	linguist-vendored
+glad/*	linguist-vendored
+glm/*	linguist-vendored
+*.md	linguist-documentation
+screenshot.png	linguist-documentation
