@@ -41,12 +41,12 @@ relinked at the key press, so you can edit the shaders while the main programm i
 
 ### Command-Line arguments
 
-THe HelloCube program supports a number of command-line arguments.
+The HelloCube program supports a number of command-line arguments.
 
 #### Window control
 
 * `--fullscreen`: run in fullscreen mode
-* `--undecorated`: run without window decoration (can be used in combination with initial window size and position arguments to achive "borderless windowed fullscreen")
+* `--undecorated`: run without window decoration (can be used in combination with initial window size and position arguments to achieve "borderless windowed fullscreen")
 * `--width $w`: set initial window width to `$w`
 * `--height $h`: set initial window height to `$h`
 * `--x $x`: set initial window position x coordinate to `$x`
