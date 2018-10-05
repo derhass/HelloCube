@@ -1,5 +1,3 @@
-#define GLEW_NO_GLU
-
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
