@@ -4,6 +4,7 @@
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/constants.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/transform.hpp>
 
 #include <stdarg.h>
@@ -83,6 +84,8 @@ typedef struct {
 	GLuint program;		/* shader program */
 	GLint locProjection;
 	GLint locModelView;
+	GLint locNormalMatrix;
+	GLint locLightPosES;
 	GLint locTime;
 
 	/*  the gloabal transformation matrices */
@@ -97,6 +100,7 @@ typedef struct {
 /* We use the following layout for vertex data */
 typedef struct {
 	GLfloat pos[3]; /* 3D cartesian coordinates */
+	GLfloat nrm[3]; /* unit-length normal direction vector */
 	GLubyte clr[4]; /* RGBA (8bit per channel is typically enough) */
 } Vertex;
 
@@ -547,6 +551,7 @@ static bool initShaders(CubeApp *app, const char *vs, const char *fs)
 
 	app->locProjection=glGetUniformLocation(app->program, "projection");
 	app->locModelView=glGetUniformLocation(app->program, "modelView");
+	app->locNormalMatrix=glGetUniformLocation(app->program, "normalMatrix");
 	app->locTime=glGetUniformLocation(app->program, "time");
 	info("program %u: location for \"projection\" uniform: %d",app->program, app->locProjection);
 	info("program %u: location for \"modelView\" uniform: %d",app->program, app->locModelView);
@@ -571,37 +576,38 @@ static bool initShaders(CubeApp *app, const char *vs, const char *fs)
 static void initCube(Cube *cube)
 {
 	static const Vertex cubeGeometry[]={
-		/*   X     Y     Z       R    G    B    A */
+		/*   vertex position       normal matrix              color      */
+		/*   X      Y      Z       NX    NY    NZ       R    G    B    A */
 		/* front face */
-		{{-1.0, -1.0,  1.0},  {255,   0,   0, 255}},
-		{{ 1.0, -1.0,  1.0},  {192,   0,   0, 255}},
-		{{-1.0,  1.0,  1.0},  {192,   0,   0, 255}},
-		{{ 1.0,  1.0,  1.0},  {128,   0,   0, 255}},
+		{{-1.0f, -1.0f,  1.0f}, { 0.0f, 0.0f, 1.0f},  {255,   0,   0, 255}},
+		{{ 1.0f, -1.0f,  1.0f}, { 0.0f, 0.0f, 1.0f},  {192,   0,   0, 255}},
+		{{-1.0f,  1.0f,  1.0f}, { 0.0f, 0.0f, 1.0f},  {192,   0,   0, 255}},
+		{{ 1.0f,  1.0f,  1.0f}, { 0.0f, 0.0f, 1.0f},  {128,   0,   0, 255}},
 		/* back face */
-		{{ 1.0, -1.0, -1.0},  {  0, 255, 255, 255}},
-		{{-1.0, -1.0, -1.0},  {  0, 192, 192, 255}},
-		{{ 1.0,  1.0, -1.0},  {  0, 192, 192, 255}},
-		{{-1.0,  1.0, -1.0},  {  0, 128, 128, 255}},
+		{{ 1.0f, -1.0f, -1.0f}, { 0.0f, 0.0f,-1.0f},  {  0, 255, 255, 255}},
+		{{-1.0f, -1.0f, -1.0f}, { 0.0f, 0.0f,-1.0f},  {  0, 192, 192, 255}},
+		{{ 1.0f,  1.0f, -1.0f}, { 0.0f, 0.0f,-1.0f},  {  0, 192, 192, 255}},
+		{{-1.0f,  1.0f, -1.0f}, { 0.0f, 0.0f,-1.0f},  {  0, 128, 128, 255}},
 		/* left  face */
-		{{-1.0, -1.0, -1.0},  {  0, 255,   0, 255}},
-		{{-1.0, -1.0,  1.0},  {  0, 192,   0, 255}},
-		{{-1.0,  1.0, -1.0},  {  0, 192,   0, 255}},
-		{{-1.0,  1.0,  1.0},  {  0, 128,   0, 255}},
+		{{-1.0f, -1.0f, -1.0f}, {-1.0f, 0.0f, 0.0f},  {  0, 255,   0, 255}},
+		{{-1.0f, -1.0f,  1.0f}, {-1.0f, 0.0f, 0.0f},  {  0, 192,   0, 255}},
+		{{-1.0f,  1.0f, -1.0f}, {-1.0f, 0.0f, 0.0f},  {  0, 192,   0, 255}},
+		{{-1.0f,  1.0f,  1.0f}, {-1.0f, 0.0f, 0.0f},  {  0, 128,   0, 255}},
 		/* right face */
-		{{ 1.0, -1.0,  1.0},  {255,   0, 255, 255}},
-		{{ 1.0, -1.0, -1.0},  {192,   0, 192, 255}},
-		{{ 1.0,  1.0,  1.0},  {192,   0, 192, 255}},
-		{{ 1.0,  1.0, -1.0},  {128,   0, 128, 255}},
+		{{ 1.0f, -1.0f,  1.0f}, { 1.0f, 0.0f, 0.0f},  {255,   0, 255, 255}},
+		{{ 1.0f, -1.0f, -1.0f}, { 1.0f, 0.0f, 0.0f},  {192,   0, 192, 255}},
+		{{ 1.0f,  1.0f,  1.0f}, { 1.0f, 0.0f, 0.0f},  {192,   0, 192, 255}},
+		{{ 1.0f,  1.0f, -1.0f}, { 1.0f, 0.0f, 0.0f},  {128,   0, 128, 255}},
 		/* top face */
-		{{-1.0,  1.0,  1.0},  {  0,   0, 255, 255}},
-		{{ 1.0,  1.0,  1.0},  {  0,   0, 192, 255}},
-		{{-1.0,  1.0, -1.0},  {  0,   0, 192, 255}},
-		{{ 1.0,  1.0, -1.0},  {  0,   0, 128, 255}},
+		{{-1.0f,  1.0f,  1.0f}, { 0.0f, 1.0f, 0.0f},  {  0,   0, 255, 255}},
+		{{ 1.0f,  1.0f,  1.0f}, { 0.0f, 1.0f, 0.0f},  {  0,   0, 192, 255}},
+		{{-1.0f,  1.0f, -1.0f}, { 0.0f, 1.0f, 0.0f},  {  0,   0, 192, 255}},
+		{{ 1.0f,  1.0f, -1.0f}, { 0.0f, 1.0f, 0.0f},  {  0,   0, 128, 255}},
 		/* bottom face */
-		{{ 1.0, -1.0,  1.0},  {255, 255,   0, 255}},
-		{{-1.0, -1.0,  1.0},  {192, 192,   0, 255}},
-		{{ 1.0, -1.0, -1.0},  {192, 192,   0, 255}},
-		{{-1.0, -1.0, -1.0},  {128, 128,   0, 255}},
+		{{ 1.0f, -1.0f,  1.0f}, { 0.0f,-1.0f, 0.0f},  {255, 255,   0, 255}},
+		{{-1.0f, -1.0f,  1.0f}, { 0.0f,-1.0f, 0.0f},  {192, 192,   0, 255}},
+		{{ 1.0f, -1.0f, -1.0f}, { 0.0f,-1.0f, 0.0f},  {192, 192,   0, 255}},
+		{{-1.0f, -1.0f, -1.0f}, { 0.0f,-1.0f, 0.0f},  {128, 128,   0, 255}},
 	};
 
 	/* use two triangles sharing an edge for each face */
@@ -629,9 +635,11 @@ static void initCube(Cube *cube)
 	info("Cube: created VBO %u for %u bytes of element data", cube->vbo[1], (unsigned)sizeof(cubeConnectivity));
 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), BUFFER_OFFSET(offsetof(Vertex,pos)));
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), BUFFER_OFFSET(offsetof(Vertex,nrm)));
 	glVertexAttribPointer(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(Vertex), BUFFER_OFFSET(offsetof(Vertex,clr)));
 
 	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
 	glEnableVertexAttribArray(2);
 
 	glBindVertexArray(0);
@@ -889,11 +897,15 @@ drawScene(CubeApp *app)
 	/* combine model and view matrices to the modelView matrix our
 	 * shader expects */
 	glm::mat4 modelView = app->view * app->cube.model;
+	/* calculate the normal matrix as the inverse-transpose of the
+	 * upper loeft 3x3 sub-matrix of the modelView matrix */
+	glm::mat3 normalMatrix = glm::inverseTranspose(glm::mat3(modelView));
 
 	/* use the program and update the uniforms */
 	glUseProgram(app->program);
 	glUniformMatrix4fv(app->locProjection, 1, GL_FALSE, glm::value_ptr(app->projection));
 	glUniformMatrix4fv(app->locModelView, 1, GL_FALSE, glm::value_ptr(modelView));
+	glUniformMatrix3fv(app->locNormalMatrix, 1, GL_FALSE, glm::value_ptr(normalMatrix));
 	glUniform1f(app->locTime, (GLfloat)app->timeCur);
 
 	/* draw the cube */
