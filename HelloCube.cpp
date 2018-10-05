@@ -79,6 +79,8 @@ typedef struct {
 
 	/* the cube we want to render */
 	Cube cube;
+	/* the light source */
+	glm::vec4 lightPosition;
 
 	/* the OpenGL state we need for the shaders */
 	GLuint program;		/* shader program */
@@ -552,6 +554,7 @@ static bool initShaders(CubeApp *app, const char *vs, const char *fs)
 	app->locProjection=glGetUniformLocation(app->program, "projection");
 	app->locModelView=glGetUniformLocation(app->program, "modelView");
 	app->locNormalMatrix=glGetUniformLocation(app->program, "normalMatrix");
+	app->locLightPosES=glGetUniformLocation(app->program, "lightPosES");
 	app->locTime=glGetUniformLocation(app->program, "time");
 	info("program %u: location for \"projection\" uniform: %d",app->program, app->locProjection);
 	info("program %u: location for \"modelView\" uniform: %d",app->program, app->locModelView);
@@ -697,8 +700,8 @@ static void callback_Keyboard(GLFWwindow *win, int key, int scancode, int action
 		/* 2 */ {"shaders/cut.vs.glsl", "shaders/cut.fs.glsl"},
 		/* 3 */ {"shaders/wobble.vs.glsl", "shaders/color.fs.glsl"},
 		/* 4 */ {"shaders/experimental.vs.glsl", "shaders/experimental.fs.glsl"},
+		/* 5 */ {"shaders/lighting_blinn_phong.vs.glsl", "shaders/lighting_blinn_phong.fs.glsl"},
 		/* placeholders for additional shaders */
-		/* 5 */ {"shaders/yourshader.vs.glsl", "shaders/yourshader.fs.glsl"},
 		/* 6 */ {"shaders/yourshader.vs.glsl", "shaders/yourshader.fs.glsl"},
 		/* 7 */ {"shaders/yourshader.vs.glsl", "shaders/yourshader.fs.glsl"},
 		/* 8 */ {"shaders/yourshader.vs.glsl", "shaders/yourshader.fs.glsl"},
@@ -900,12 +903,17 @@ drawScene(CubeApp *app)
 	/* calculate the normal matrix as the inverse-transpose of the
 	 * upper loeft 3x3 sub-matrix of the modelView matrix */
 	glm::mat3 normalMatrix = glm::inverseTranspose(glm::mat3(modelView));
+	/* transform the light position into eye space,
+	 * since our shader use eye space for lighting calculations
+	 * (as traditional fixed-function GL pipeline did) */
+	glm::vec4 lightPosES = app->view * app->lightPosition;
 
 	/* use the program and update the uniforms */
 	glUseProgram(app->program);
 	glUniformMatrix4fv(app->locProjection, 1, GL_FALSE, glm::value_ptr(app->projection));
 	glUniformMatrix4fv(app->locModelView, 1, GL_FALSE, glm::value_ptr(modelView));
 	glUniformMatrix3fv(app->locNormalMatrix, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+	glUniform4fv(app->locLightPosES, 1, glm::value_ptr(lightPosES));
 	glUniform1f(app->locTime, (GLfloat)app->timeCur);
 
 	/* draw the cube */
@@ -935,6 +943,8 @@ displayFunc(CubeApp *app, const AppConfig& cfg)
 {
 	/* rotate the cube */
 	app->cube.model = glm::rotate(app->cube.model, (float)(glm::half_pi<double>() * app->timeDelta), glm::vec3(0.8f, 0.6f, 0.1f));
+	/* place the light source */
+	app->lightPosition = glm::vec4(-2.0f, 6.0f, 3.0f, 1.0f);
 
 	/* set the viewport (might have changed since last iteration) */
 	glViewport(0, 0, app->width, app->height);
