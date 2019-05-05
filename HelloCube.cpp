@@ -94,6 +94,7 @@ typedef struct {
 	/* HACK: PBO ring */
 	GLuint pbo[MAX_PBOS];
 	bool async;
+	bool map;
 } CubeApp;
 
 /* flags */
@@ -725,6 +726,9 @@ static void callback_Keyboard(GLFWwindow *win, int key, int scancode, int action
 					case GLFW_KEY_A:
 						app->async = !app->async;
 						break;
+					case GLFW_KEY_M:
+						app->map = !app->map;
+						break;
 				}
 			}
 		}
@@ -868,6 +872,7 @@ bool initCubeApplication(CubeApp *app, const AppConfig& cfg)
 
 	/* HACK: PBO ring */
 	app->async=true;
+	app->map=false;
 	glGenBuffers(MAX_PBOS, app->pbo);
 	for (int i=0; i<MAX_PBOS; i++) {
 		glBindBuffer(GL_PIXEL_PACK_BUFFER, app->pbo[i]);
@@ -956,10 +961,14 @@ displayFunc(CubeApp *app, const AppConfig& cfg)
 	if (app->async) {
 		static int cnt;
 		glBindBuffer(GL_PIXEL_PACK_BUFFER, app->pbo[cnt]);
-		GLfloat *valptr=(GLfloat*)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
-		if (valptr) {
-			val=valptr[0];
-			glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+		if (app->map) {
+			GLfloat *valptr=(GLfloat*)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
+			if (valptr) {
+				val=valptr[0];
+				glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+			}
+		} else {
+			glGetBufferSubData(GL_PIXEL_PACK_BUFFER, 0, sizeof(GLfloat), &val);
 		}
 		ta=glfwGetTime();
 		glReadPixels(app->width/2, app->height/2, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
