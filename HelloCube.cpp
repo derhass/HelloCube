@@ -55,6 +55,8 @@ struct AppConfig {
 	{}
 };
 
+#define MAX_PBOS	10
+
 /* CubeApp: We encapsulate all of our application state in this struct.
  * We use a single instance of this object (in main), and set a pointer to
  * this as the user-defined pointer for GLFW windows. That way, we have access
@@ -88,6 +90,10 @@ typedef struct {
 	/*  the gloabal transformation matrices */
 	glm::mat4 projection;
 	glm::mat4 view;
+
+	/* HACK: PBO ring */
+	GLuint pbo[MAX_PBOS];
+	bool async;
 } CubeApp;
 
 /* flags */
@@ -716,6 +722,9 @@ static void callback_Keyboard(GLFWwindow *win, int key, int scancode, int action
 					case GLFW_KEY_ESCAPE:
 						glfwSetWindowShouldClose(win,1);
 						break;
+					case GLFW_KEY_A:
+						app->async = !app->async;
+						break;
 				}
 			}
 		}
@@ -857,6 +866,14 @@ bool initCubeApplication(CubeApp *app, const AppConfig& cfg)
 		return false;
 	}
 
+	/* HACK: PBO ring */
+	app->async=true;
+	glGenBuffers(MAX_PBOS, app->pbo);
+	for (int i=0; i<MAX_PBOS; i++) {
+		glBindBuffer(GL_PIXEL_PACK_BUFFER, app->pbo[i]);
+		glBufferData(GL_PIXEL_PACK_BUFFER, sizeof(GLfloat), NULL, GL_STREAM_READ);
+	}
+
 	/* initialize the timer */
 	app->timeCur=glfwGetTime();
 
@@ -932,6 +949,29 @@ displayFunc(CubeApp *app, const AppConfig& cfg)
 
 	setProjectionAndView(app);
 	drawScene(app);
+
+	/* hack: PBO readback */
+	GLfloat val=-1.0f;
+	double ta,tb;
+	if (app->async) {
+		static int cnt;
+		glBindBuffer(GL_PIXEL_PACK_BUFFER, app->pbo[cnt]);
+		GLfloat *valptr=(GLfloat*)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
+		if (valptr) {
+			val=valptr[0];
+			glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+		}
+		ta=glfwGetTime();
+		glReadPixels(app->width/2, app->height/2, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+		tb=glfwGetTime();
+		cnt=(cnt+1)%MAX_PBOS;
+	} else {
+		glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+		ta=glfwGetTime();
+		glReadPixels(app->width/2, app->height/2, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &val);
+		tb=glfwGetTime();
+	}
+	printf("Depth: %f, %ssync, time: %fms\n",val,app->async?"a":"",(tb-ta)*1000.0f);
 
 	/* finished with drawing, swap FRONT and BACK buffers to show what we
 	 * have rendered */
