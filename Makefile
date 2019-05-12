@@ -28,7 +28,7 @@ LDFLAGS += $(shell pkg-config --static --libs glfw3)
 # additional libraries
 LDFLAGS += -lrt -lm
 
-CFILES=$(wildcard *.c) glad/src/glad.c
+CFILES=$(wildcard *.c) glad/src/gl.c
 CPPFILES=$(wildcard *.cpp)
 INCFILES=$(wildcard *.h)	
 SRCFILES = $(CFILES) $(CPPFILES)
