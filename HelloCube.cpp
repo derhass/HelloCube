@@ -1,4 +1,4 @@
-#include <glad/glad.h>
+#include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
 #include <glm/mat4x4.hpp>
@@ -752,15 +752,6 @@ static void callback_Keyboard(GLFWwindow *win, int key, int scancode, int action
  * GLOBAL INITIALIZATION AND CLEANUP                                        *
  ****************************************************************************/
 
-/* wrapper for glfwProcAddresss(which is a wrapper around the platform's
-* wgl / glX / whatever GetProcAddress) for use with the GLAD loader...	*/
-static void *
-wrap_getprocaddress(const char *name, void *user_ptr)
-{
-	(void)user_ptr; // unusued
-	return (void*)glfwGetProcAddress(name);
-}
-
 /* Initialize the Cube Application.
  * This will initialize the app object, create a windows and OpenGL context
  * (via GLFW), initialize the GL function pointers via GLEW and initialize
@@ -865,7 +856,7 @@ bool initCubeApplication(CubeApp *app, const AppConfig& cfg)
 	 * this will load all OpenGL function pointers
 	 */
 	info("initializing glad");
-	if (!gladLoadGL(wrap_getprocaddress, NULL)) {
+	if (!gladLoadGL(glfwGetProcAddress)) {
 		warn("failed to intialize glad GL extension loader");
 		return false;
 	}
