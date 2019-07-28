@@ -417,11 +417,15 @@ static void printInfoLog(GLuint obj, bool program)
 {
 	char log[16384];
 	if (program) {
-		glGetProgramInfoLog(obj, 16384, 0, log);
+		glGetProgramInfoLog(obj, sizeof(log), 0, log);
 	} else {
-		glGetShaderInfoLog(obj, 16384, 0, log);
+		glGetShaderInfoLog(obj, sizeof(log), 0, log);
 	}
-	log[16383]=0;
+	/* technically, this is not strictly necessary as the GL implementation
+	 * is required to properly terminate the string, but we never trust
+	 * other code and make sure the string is terminated before running out
+	 * of the buffer. */
+	log[sizeof(log)-1]=0;
 	fprintf(stderr,"%s\n",log);
 }
 
