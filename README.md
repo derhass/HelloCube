@@ -17,7 +17,8 @@ Furthermore, glad (https://github.com/Dav1dde/glad) was used to generate the C c
 loader. This loader acquires all of the pointers to the OpenGL function at runtime. The loader source
 code is directly integrated into this project, glad itself is neither required as a build nor runtime
 dependency. However, you might use it to re-generate the loader if a new OpenGL version or extension
-emerges (if you intend to use the new functionality).
+emerges (if you intend to use the new functionality). Note that the included code was generated with the
+(not yet released as stable) version 2 of glad (https://github.com/Dav1dde/glad/tree/glad2).
 
 ### Requirements
 
