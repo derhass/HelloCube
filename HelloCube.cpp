@@ -667,7 +667,7 @@ static void initCube(Cube *cube)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-	cube->model = glm::mat4();
+	cube->model = glm::mat4(1.0f);
 	GL_ERROR_DBG("cube initialization");
 }
 
