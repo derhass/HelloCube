@@ -901,8 +901,9 @@ drawScene(CubeApp *app)
 	glBindVertexArray(0);
 }
 
-/* Set up projection and view for a particular eye
- * eyeFactor is -1 for left eye, 0 for mono, and 1 for right eye
+/* Set up projection and view matrices
+ * Although this is constant in this example, we re-calculate it per frame.
+ * For a moving camera, the view matrix would typically change per frame.
  */
 static void
 setProjectionAndView(CubeApp *app)
