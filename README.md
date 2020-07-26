@@ -58,8 +58,8 @@ The HelloCube program supports a number of command-line arguments.
 This can be controlled by:
 * `--gl-debug-level $level`
   * `0`: no debug output (the default)
-  * `1`: debug output enabled, only report errors
-  * `2`: debug output enabled, reportd anything.
+  * `1`: debug output enabled, but report errors only
+  * `2`: debug output enabled, report everything
 
 Debug output will only work if we got a GL context with Versison 4.3 or higher, or if at least one of the
 [`GL_KHR_debug`](https://www.khronos.org/registry/OpenGL/extensions/KHR/KHR_debug.txt) or
