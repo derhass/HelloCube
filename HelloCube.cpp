@@ -378,6 +378,28 @@ static void initGLState(const AppConfig&cfg)
 	/* We do not enable backface culling, since the "cut" shader works
 	 * best when one can see through the cut-out front faces... */
 	//glEnable(GL_CULL_FACE);
+	constexpr uint32_t size = 512, levels = 9;
+	uint32_t texture;
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_3D,texture);
+	glTexStorage3D(GL_TEXTURE_3D, levels, GL_RGBA32F, size, size, size);
+	glTexSubImage3D(GL_TEXTURE_3D, 0, 0, 0, 0, size, size, size, GL_RGBA, GL_UNSIGNED_BYTE, new uint8_t[size * size * size * 16]);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	uint32_t timerQuery;
+	int flushTime, flushTime2;
+	glGenQueries(1, &timerQuery);
+	glGetIntegerv(GL_TIMESTAMP, &flushTime);
+	glBeginQuery(GL_TIME_ELAPSED, timerQuery);
+	glGenerateMipmap(GL_TEXTURE_3D);
+	glEndQuery(GL_TIME_ELAPSED);
+	glGetIntegerv(GL_TIMESTAMP, &flushTime2);
+
+	uint32_t time;
+	glGetQueryObjectuiv(timerQuery, GL_QUERY_RESULT, &time);
+	printf("GPU: %fms\n", time / 1000000.0f);
+	printf("CPU: %fms\n", (flushTime2-flushTime) / 1000000.0f);
 }
 
 /****************************************************************************
